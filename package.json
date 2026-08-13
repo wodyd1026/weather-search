@@ -1,0 +1,16 @@
+{
+  "name": "weather-search",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "jose": "^6.2.4"
+  },
+  "devDependencies": {
+    "wrangler": "^4.115.0"
+  }
+}

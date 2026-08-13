@@ -20,10 +20,14 @@
       <span class="brand-mark" aria-hidden="true"><span></span></span>
       <span>오늘의 날씨</span>
     </a>
-    <div class="top-actions">
-      <button class="unit-toggle" id="unitToggle" type="button" aria-label="온도 단위 변경">
-        <span class="active" data-unit="celsius">°C</span><span>°F</span>
-      </button>
+    <div class="auth-area" id="authArea">
+      <div id="googleLoginButton" aria-label="Google 로그인"></div>
+      <div class="user-menu" id="userMenu" hidden>
+        <img id="userPicture" alt="" referrerpolicy="no-referrer">
+        <span id="userName"></span>
+        <button id="logoutButton" type="button">로그아웃</button>
+      </div>
+      <p class="auth-message" id="authMessage" role="status" hidden></p>
     </div>
   </header>
 
@@ -107,9 +111,11 @@
     </div>
   </main>
 
-  <footer><span>Data by Open-Meteo</span><span id="todayDate"></span></footer>
+  <footer><div class="footer-credit"><span>Data by Open-Meteo</span><br><span>Made by wodyd</span></div><span id="todayDate"></span></footer>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://accounts.google.com/gsi/client?hl=ko" async defer></script>
   <script src="official-korean-regions.js"></script>
   <script src="app.js"></script>
+  <script src="auth.js" defer></script>
 </body>
 </html>

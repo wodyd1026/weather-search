@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "weather-search",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-08-13",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "GOOGLE_CLIENT_ID": "215287871947-3f5q1t4ioj56bq0hk054jdp63qjq7n97.apps.googleusercontent.com",
+    "APP_ORIGINS": "https://weather-search.wodyd1610.workers.dev,http://localhost:8787"
+  }
+}

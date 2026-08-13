@@ -7,11 +7,9 @@ const emptyState = $('#emptyState');
 const statusBox = $('#status');
 const statusText = $('#statusText');
 const clearButton = $('#clearButton');
-const unitToggle = $('#unitToggle');
 const mapPanel = $('#mapPanel');
 
 let selectedPlace = null;
-let currentUnit = 'celsius';
 let lastCoordinates = null;
 let searchTimer;
 let mapInstance = null;
@@ -184,7 +182,7 @@ async function loadWeather(latitude, longitude, place) {
       latitude, longitude,
       current: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m',
       daily: 'temperature_2m_max,temperature_2m_min',
-      temperature_unit: currentUnit === 'fahrenheit' ? 'fahrenheit' : 'celsius',
+      temperature_unit: 'celsius',
       wind_speed_unit: 'kmh', timezone: 'auto', forecast_days: '1'
     });
     const response = await fetch(url);
@@ -202,7 +200,7 @@ function renderWeather(data, place) {
   $('#placeName').textContent = place.name || '현재 위치';
   $('#localTime').textContent = [place.admin1, place.country].filter(Boolean).join(' · ') || data.timezone;
   $('#temperature').textContent = Math.round(current.temperature_2m);
-  $('#temperatureUnit').textContent = currentUnit === 'celsius' ? '°C' : '°F';
+  $('#temperatureUnit').textContent = '°C';
   $('#condition').textContent = condition;
   $('#weatherSymbol').textContent = symbol;
   $('#feelsLike').textContent = `체감 온도 ${Math.round(current.apparent_temperature)}°`;
@@ -319,14 +317,6 @@ $('#locationButton').addEventListener('click', () => {
     () => showError('위치 권한을 허용하지 않았거나 현재 위치를 확인할 수 없어요.'),
     { enableHighAccuracy: true, timeout: 10000 }
   );
-});
-
-unitToggle.addEventListener('click', () => {
-  currentUnit = currentUnit === 'celsius' ? 'fahrenheit' : 'celsius';
-  const labels = unitToggle.querySelectorAll('span');
-  labels[0].classList.toggle('active', currentUnit === 'celsius');
-  labels[1].classList.toggle('active', currentUnit === 'fahrenheit');
-  if (lastCoordinates) loadWeather(lastCoordinates.latitude, lastCoordinates.longitude, lastCoordinates.place);
 });
 
 document.addEventListener('click', (event) => {

@@ -22,9 +22,13 @@ button { color: inherit; }
 .brand { display: flex; align-items: center; gap: 11px; color: var(--ink); text-decoration: none; font-weight: 700; letter-spacing: -.04em; }
 .brand-mark { width: 31px; height: 31px; border: 1.5px solid var(--deep); border-radius: 50%; display: grid; place-items: center; }
 .brand-mark span { width: 9px; height: 9px; border-radius: 50%; background: var(--coral); box-shadow: 8px -5px 0 -2px var(--sage); }
-.unit-toggle { padding: 4px; display: flex; border: 1px solid var(--line); border-radius: 99px; background: rgba(255,255,255,.45); cursor: pointer; }
-.unit-toggle span { padding: 7px 11px; border-radius: 99px; font-size: 12px; font-weight: 600; color: var(--muted); }
-.unit-toggle .active { color: white; background: var(--deep); }
+.auth-area { position: relative; min-height: 40px; display: flex; align-items: center; justify-content: flex-end; }
+.user-menu { padding: 5px 6px 5px 8px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 99px; background: rgba(255,255,255,.72); box-shadow: 0 5px 18px rgba(43,68,61,.08); }
+.user-menu img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: #e8eeeb; }
+.user-menu span { max-width: 105px; overflow: hidden; color: var(--ink); font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.user-menu button { padding: 7px 9px; border: 0; border-radius: 99px; background: #edf1ef; color: var(--muted); font-size: 10px; cursor: pointer; }
+.user-menu button:hover { color: var(--deep); background: #e3ebe7; }
+.auth-message { position: absolute; top: calc(100% + 8px); right: 0; width: max-content; max-width: 260px; margin: 0; padding: 7px 10px; border-radius: 9px; background: #fff4ee; color: #9a4e35; font-size: 10px; box-shadow: 0 5px 16px rgba(43,68,61,.08); }
 main { width: min(980px, calc(100% - 40px)); margin: 65px auto 80px; }
 .hero { text-align: center; }
 .eyebrow, .result-label { margin: 0 0 18px; color: var(--coral); font-size: 11px; font-weight: 700; letter-spacing: .2em; }
@@ -77,6 +81,8 @@ h1 em { color: var(--deep); font-style: normal; }
 .loader { width: 17px; height: 17px; border: 2px solid #cad5d1; border-top-color: var(--deep); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 footer { max-width: 1240px; margin: auto; padding: 25px 40px; display: flex; justify-content: space-between; color: #89948f; font-size: 10px; letter-spacing: .05em; }
+.footer-credit span { display: block; }
+.footer-credit br { display: block; content: ""; margin-top: 5px; }
 [hidden] { display: none !important; }
 .map-panel { margin: 24px auto 0; max-width: 830px; animation: reveal .55s ease .08s both; }
 .map-toolbar { padding: 0 7px 17px; display: flex; align-items: flex-end; justify-content: space-between; }
@@ -102,6 +108,8 @@ footer { max-width: 1240px; margin: auto; padding: 25px 40px; display: flex; jus
 .map-credit { margin: 9px 8px 0; color: #89948f; font-size: 9px; text-align: right; }
 @media (max-width: 650px) {
   .topbar { padding: 20px; }
+  .brand > span:last-child { display: none; }
+  .user-menu span { display: none; }
   main { margin-top: 45px; }
   .search-form { padding-left: 18px; min-height: 60px; }
   .search-button { padding: 0 16px; }
