@@ -43,7 +43,7 @@ function showError(message) {
 }
 
 function placeLabel(place) {
-  return [place.name, place.admin1, place.country].filter((v, i, a) => v && a.indexOf(v) === i).join(', ');
+  return [place.name, place.admin2, place.admin1, place.country].filter((v, i, a) => v && a.indexOf(v) === i).join(', ');
 }
 
 const koreanRegionAliases = {
@@ -66,6 +66,11 @@ const verifiedKoreanPlaces = {
   노원: {
     id: 'osm-R-2419950', name: '노원구', admin1: '서울특별시', country: '대한민국', country_code: 'KR',
     latitude: 37.654, longitude: 127.0567, feature_code: 'ADM', searchSource: 'verified-administrative'
+  },
+  광주: {
+    id: 'verified-kr-29', name: '광주광역시', country: '대한민국', country_code: 'KR',
+    latitude: 35.1595, longitude: 126.8526, feature_code: 'ADM', adminLevel: 4,
+    searchSource: 'verified-administrative'
   }
 };
 
@@ -91,12 +96,18 @@ async function searchPlaces(query) {
     return ((await response.json()).results || []).map((place) => ({ ...place, searchSource: 'open-meteo' }));
   });
 
+  const isKoreanQuery = /[가-힣]/u.test(query);
   const photonRequest = searchKoreanAdministrativePlace(query);
   const verifiedPlace = verifiedKoreanPlaces[normalizeKoreanName(query)];
   const groups = await Promise.all([...openMeteoRequests, photonRequest]);
   if (verifiedPlace) groups.unshift([verifiedPlace]);
   const seen = new Set();
   const results = groups.flat().filter((place) => {
+    // 한글로 검색한 대한민국 후보는 검증된 공식 행정경계만 사용한다.
+    // Open-Meteo의 PPL 결과에는 상호·역·자연마을과 잘못 연결된 지명이 포함될 수 있다.
+    if (isKoreanQuery
+      && (place.country_code === 'KR' || place.country === '대한민국')
+      && !['osm-administrative', 'verified-administrative'].includes(place.searchSource)) return false;
     // 검증된 행정구역과 이름이 같은 외부 API의 충돌 후보는 노출하지 않는다.
     // 예: "노원" 검색에서 Open-Meteo가 반환하는 충청남도 천안시의 자연마을.
     if (verifiedPlace
@@ -119,36 +130,52 @@ async function searchKoreanAdministrativePlace(rawQuery) {
   const query = rawQuery.trim();
   if (!/[가-힣]/u.test(query)) return [];
 
-  // 접미사가 없는 한국 지역명은 자치구를 먼저 확인한다. 예: 노원 -> 노원구.
-  // 결과는 행정경계만 허용해 역·상점·동명의 작은 마을이 행정구역보다 앞서는 것을 막는다.
-  const hasAdministrativeSuffix = /(특별자치도|특별자치시|특별시|광역시|자치구|시|군|구|도)$/u.test(query);
-  const administrativeQuery = hasAdministrativeSuffix ? query : `${query}구`;
-  const url = new URL('https://photon.komoot.io/api/');
-  url.search = new URLSearchParams({ q: `${administrativeQuery} 대한민국`, limit: '8' });
-
   try {
-    const response = await fetch(url);
-    if (!response.ok) return [];
-    const data = await response.json();
-    return (data.features || [])
-      .filter(({ properties }) => properties.countrycode === 'KR'
-        && (properties.osm_key === 'place' || properties.osm_key === 'boundary')
-        && ['district', 'city', 'county', 'state', 'locality'].includes(properties.type))
+    const requests = buildKoreanAdministrativeQueries(query).map(async (administrativeQuery) => {
+      const url = new URL('https://photon.komoot.io/api/');
+      url.search = new URLSearchParams({ q: `${administrativeQuery} 대한민국`, limit: '12' });
+      const response = await fetch(url);
+      if (!response.ok) return [];
+      return (await response.json()).features || [];
+    });
+    const featureGroups = await Promise.all(requests);
+    return featureGroups.flat()
+      .filter(({ properties }) => {
+        const adminLevel = Number(properties.extra?.admin_level);
+        const isOfficialLevel = adminLevel === 4 || adminLevel === 6;
+        const isAdministrativeFeature = properties.countrycode === 'KR'
+          && ['place', 'boundary'].includes(properties.osm_key)
+          && ['state', 'city', 'county', 'district'].includes(properties.type);
+        const hasOfficialSuffix = /(특별자치도|특별자치시|특별시|광역시|자치구|시|군|구|도)$/u.test(properties.name || '');
+        return isOfficialLevel && isAdministrativeFeature && hasOfficialSuffix;
+      })
       .map(({ properties, geometry }) => ({
         id: `osm-${properties.osm_type}-${properties.osm_id}`,
         name: properties.name,
-        admin1: properties.state || properties.city,
-        admin2: properties.county || properties.district,
+        admin1: properties.state || (Number(properties.extra?.admin_level) === 6 ? properties.city : undefined),
+        admin2: properties.county,
         country: properties.country || '대한민국',
         country_code: 'KR',
         latitude: geometry.coordinates[1],
         longitude: geometry.coordinates[0],
         feature_code: 'ADM',
+        adminLevel: Number(properties.extra?.admin_level),
         searchSource: 'osm-administrative'
       }));
   } catch {
     return [];
   }
+}
+
+function buildKoreanAdministrativeQueries(rawQuery) {
+  const compact = rawQuery.replace(/\s/g, '');
+  const alias = koreanRegionAliases[compact];
+  const hasSuffix = /(특별자치도|특별자치시|특별시|광역시|자치구|시|군|구|도)$/u.test(compact);
+  if (hasSuffix) return [...new Set([alias, compact].filter(Boolean))];
+
+  // 일상적으로 접미사를 생략한 입력을 시·군·구 후보로 확장한다.
+  // 최종 결과는 admin_level 4/6 검증을 다시 통과해야 하므로 상호·마을은 포함되지 않는다.
+  return [...new Set([alias, `${compact}구`, `${compact}시`, `${compact}군`, `${compact}도`, compact].filter(Boolean))];
 }
 
 function locationScore(place, rawQuery) {
@@ -275,6 +302,8 @@ function saveRecent(place) {
 function renderRecent() {
   const storedRecent = JSON.parse(localStorage.getItem('weatherRecent') || '[]');
   const recent = storedRecent.filter((place) => {
+    if ((place.country_code === 'KR' || place.country === '대한민국')
+      && !['ADM'].includes(place.feature_code)) return false;
     const verified = verifiedKoreanPlaces[normalizeKoreanName(place.name)];
     return !verified || place.admin1 === verified.admin1;
   });
