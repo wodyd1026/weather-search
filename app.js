@@ -76,7 +76,7 @@ function buildSearchVariants(rawQuery) {
 async function searchPlaces(query) {
   const requests = buildSearchVariants(query).map(async (name) => {
     const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
-    url.search = new URLSearchParams({ name, count: '6', language: 'ko', format: 'json' });
+    url.search = new URLSearchParams({ name, count: '20', language: 'ko', format: 'json' });
     const response = await fetch(url);
     if (!response.ok) throw new Error('지역 검색에 실패했습니다.');
     return (await response.json()).results || [];
@@ -84,12 +84,19 @@ async function searchPlaces(query) {
 
   const groups = await Promise.all(requests);
   const seen = new Set();
-  return groups.flat().filter((place) => {
+  const results = groups.flat().filter((place) => {
     const key = place.id || `${place.latitude},${place.longitude}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
-  }).slice(0, 6);
+  });
+
+  // 대한민국을 우선으로 정렬
+  return results.sort((a, b) => {
+    const aIsKorea = a.country === '대한민국' ? 0 : 1;
+    const bIsKorea = b.country === '대한민국' ? 0 : 1;
+    return aIsKorea - bIsKorea;
+  }).slice(0, 15);
 }
 
 function renderSuggestions(places) {
