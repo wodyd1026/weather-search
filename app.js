@@ -60,6 +60,15 @@ const koreanRegionAliases = {
   제주: '제주특별자치도', 제주도: '제주특별자치도'
 };
 
+// 외부 지오코더가 동명의 자연마을을 반환하는 것으로 확인된 행정구역.
+// 행정경계 중심점은 OpenStreetMap relation 2419950을 기준으로 검증했다.
+const verifiedKoreanPlaces = {
+  노원: {
+    id: 'osm-R-2419950', name: '노원구', admin1: '서울특별시', country: '대한민국', country_code: 'KR',
+    latitude: 37.654, longitude: 127.0567, feature_code: 'ADM', searchSource: 'verified-administrative'
+  }
+};
+
 function buildSearchVariants(rawQuery) {
   const query = rawQuery.trim().replace(/\s+/g, ' ');
   const compact = query.replace(/\s/g, '');
@@ -74,29 +83,80 @@ function buildSearchVariants(rawQuery) {
 }
 
 async function searchPlaces(query) {
-  const requests = buildSearchVariants(query).map(async (name) => {
+  const openMeteoRequests = buildSearchVariants(query).map(async (name) => {
     const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
     url.search = new URLSearchParams({ name, count: '20', language: 'ko', format: 'json' });
     const response = await fetch(url);
     if (!response.ok) throw new Error('지역 검색에 실패했습니다.');
-    return (await response.json()).results || [];
+    return ((await response.json()).results || []).map((place) => ({ ...place, searchSource: 'open-meteo' }));
   });
 
-  const groups = await Promise.all(requests);
+  const photonRequest = searchKoreanAdministrativePlace(query);
+  const verifiedPlace = verifiedKoreanPlaces[normalizeKoreanName(query)];
+  const groups = await Promise.all([...openMeteoRequests, photonRequest]);
+  if (verifiedPlace) groups.unshift([verifiedPlace]);
   const seen = new Set();
   const results = groups.flat().filter((place) => {
-    const key = place.id || `${place.latitude},${place.longitude}`;
+    const key = `${normalizeKoreanName(place.name)}:${Number(place.latitude).toFixed(3)},${Number(place.longitude).toFixed(3)}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 
-  // 대한민국을 우선으로 정렬
-  return results.sort((a, b) => {
-    const aIsKorea = a.country === '대한민국' ? 0 : 1;
-    const bIsKorea = b.country === '대한민국' ? 0 : 1;
-    return aIsKorea - bIsKorea;
-  }).slice(0, 15);
+  return results.sort((a, b) => locationScore(b, query) - locationScore(a, query)).slice(0, 15);
+}
+
+function normalizeKoreanName(value = '') {
+  return value.replace(/\s/g, '').replace(/(특별자치도|특별자치시|특별시|광역시|자치구|시|군|구|도)$/u, '');
+}
+
+async function searchKoreanAdministrativePlace(rawQuery) {
+  const query = rawQuery.trim();
+  if (!/[가-힣]/u.test(query)) return [];
+
+  // 접미사가 없는 한국 지역명은 자치구를 먼저 확인한다. 예: 노원 -> 노원구.
+  // 결과는 행정경계만 허용해 역·상점·동명의 작은 마을이 행정구역보다 앞서는 것을 막는다.
+  const hasAdministrativeSuffix = /(특별자치도|특별자치시|특별시|광역시|자치구|시|군|구|도)$/u.test(query);
+  const administrativeQuery = hasAdministrativeSuffix ? query : `${query}구`;
+  const url = new URL('https://photon.komoot.io/api/');
+  url.search = new URLSearchParams({ q: `${administrativeQuery} 대한민국`, limit: '8' });
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return (data.features || [])
+      .filter(({ properties }) => properties.countrycode === 'KR'
+        && (properties.osm_key === 'place' || properties.osm_key === 'boundary')
+        && ['district', 'city', 'county', 'state', 'locality'].includes(properties.type))
+      .map(({ properties, geometry }) => ({
+        id: `osm-${properties.osm_type}-${properties.osm_id}`,
+        name: properties.name,
+        admin1: properties.state || properties.city,
+        admin2: properties.county || properties.district,
+        country: properties.country || '대한민국',
+        country_code: 'KR',
+        latitude: geometry.coordinates[1],
+        longitude: geometry.coordinates[0],
+        feature_code: 'ADM',
+        searchSource: 'osm-administrative'
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function locationScore(place, rawQuery) {
+  const query = normalizeKoreanName(rawQuery);
+  const name = normalizeKoreanName(place.name);
+  let score = 0;
+  if (place.country_code === 'KR' || place.country === '대한민국') score += 100;
+  if (name === query) score += 100;
+  else if (name.startsWith(query)) score += 45;
+  if (place.searchSource === 'osm-administrative') score += 80;
+  if (place.searchSource === 'verified-administrative') score += 200;
+  if (/^ADM/.test(place.feature_code || '')) score += 35;
+  return score;
 }
 
 function renderSuggestions(places) {
@@ -109,7 +169,7 @@ function renderSuggestions(places) {
       const button = document.createElement('button');
       button.type = 'button';
       button.setAttribute('role', 'option');
-      button.innerHTML = `<span>${place.name}</span><small>${[place.admin1, place.country].filter(Boolean).join(' · ')}</small>`;
+      button.innerHTML = `<span>${place.name}</span><small>${[place.admin1, place.admin2, place.country].filter((v, i, a) => v && v !== place.name && a.indexOf(v) === i).join(' · ')}</small>`;
       button.addEventListener('click', () => selectPlace(place));
       item.appendChild(button);
       suggestions.appendChild(item);
