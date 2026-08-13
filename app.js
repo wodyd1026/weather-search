@@ -97,6 +97,11 @@ async function searchPlaces(query) {
   if (verifiedPlace) groups.unshift([verifiedPlace]);
   const seen = new Set();
   const results = groups.flat().filter((place) => {
+    // 검증된 행정구역과 이름이 같은 외부 API의 충돌 후보는 노출하지 않는다.
+    // 예: "노원" 검색에서 Open-Meteo가 반환하는 충청남도 천안시의 자연마을.
+    if (verifiedPlace
+      && normalizeKoreanName(place.name) === normalizeKoreanName(verifiedPlace.name)
+      && place.admin1 !== verifiedPlace.admin1) return false;
     const key = `${normalizeKoreanName(place.name)}:${Number(place.latitude).toFixed(3)},${Number(place.longitude).toFixed(3)}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -268,7 +273,14 @@ function saveRecent(place) {
 }
 
 function renderRecent() {
-  const recent = JSON.parse(localStorage.getItem('weatherRecent') || '[]');
+  const storedRecent = JSON.parse(localStorage.getItem('weatherRecent') || '[]');
+  const recent = storedRecent.filter((place) => {
+    const verified = verifiedKoreanPlaces[normalizeKoreanName(place.name)];
+    return !verified || place.admin1 === verified.admin1;
+  });
+  if (recent.length !== storedRecent.length) {
+    localStorage.setItem('weatherRecent', JSON.stringify(recent));
+  }
   const holder = $('#recentButtons');
   holder.innerHTML = '';
   $('#recentSearches').hidden = recent.length === 0;
