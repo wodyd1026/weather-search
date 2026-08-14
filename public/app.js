@@ -14,6 +14,7 @@ let lastCoordinates = null;
 let searchTimer;
 let mapInstance = null;
 let mapMarker = null;
+let isAuthenticated = false;
 
 const weatherCodes = {
   0: ['맑음', '☀'], 1: ['대체로 맑음', '◐'], 2: ['부분적으로 흐림', '⛅'], 3: ['흐림', '☁'],
@@ -270,12 +271,38 @@ function renderRecent() {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = place.name;
+    button.disabled = !isAuthenticated;
     button.addEventListener('click', () => selectPlace(place));
     holder.appendChild(button);
   });
 }
 
+function applyAuthenticationState(authenticated) {
+  isAuthenticated = authenticated;
+  input.disabled = !authenticated;
+  form.querySelector('.search-button').disabled = !authenticated;
+  $('#locationButton').disabled = !authenticated;
+  input.placeholder = authenticated ? '도시 또는 지역을 검색하세요' : '로그인 후 지역을 검색하세요';
+  closeSuggestions();
+
+  if (!authenticated) {
+    input.value = '';
+    selectedPlace = null;
+    clearButton.hidden = true;
+    weatherPanel.hidden = true;
+    mapPanel.hidden = true;
+    statusBox.hidden = true;
+    emptyState.hidden = false;
+  }
+  renderRecent();
+}
+
+window.addEventListener('authchange', (event) => {
+  applyAuthenticationState(Boolean(event.detail?.authenticated));
+});
+
 input.addEventListener('input', () => {
+  if (!isAuthenticated) return;
   selectedPlace = null;
   clearButton.hidden = !input.value;
   clearTimeout(searchTimer);
@@ -289,6 +316,7 @@ input.addEventListener('input', () => {
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!isAuthenticated) return;
   const query = input.value.trim();
   if (!query) return input.focus();
   if (selectedPlace) return loadWeather(selectedPlace.latitude, selectedPlace.longitude, selectedPlace);
@@ -310,6 +338,7 @@ clearButton.addEventListener('click', () => {
 });
 
 $('#locationButton').addEventListener('click', () => {
+  if (!isAuthenticated) return;
   if (!navigator.geolocation) return showError('이 브라우저에서는 위치 기능을 지원하지 않아요.');
   setLoading('현재 위치를 확인하고 있어요');
   navigator.geolocation.getCurrentPosition(

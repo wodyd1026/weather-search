@@ -37,19 +37,24 @@
       <h1 id="hero-title">날씨와 위치</h1>
       <p class="intro">궁금한 도시나 지역을 검색해 보세요.<br>지금의 하늘을 가장 간결하게 전해드려요.</p>
 
+      <div class="login-required" id="loginRequired">
+        <span class="lock-icon" aria-hidden="true">⌁</span>
+        <div><strong>로그인 후 검색할 수 있어요</strong><p>오른쪽 위 Google 로그인 버튼을 이용해 주세요.</p></div>
+      </div>
+
       <div class="search-area">
         <form class="search-form" id="searchForm" role="search" autocomplete="off">
           <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"/></svg>
           <label class="sr-only" for="locationInput">지역 검색</label>
-          <input id="locationInput" name="location" type="search" placeholder="도시 또는 지역을 검색하세요" aria-controls="suggestions" aria-expanded="false">
+          <input id="locationInput" name="location" type="search" placeholder="로그인 후 지역을 검색하세요" aria-controls="suggestions" aria-expanded="false" disabled>
           <button class="clear-button" id="clearButton" type="button" aria-label="검색어 지우기" hidden>×</button>
-          <button class="search-button" type="submit">날씨 보기</button>
+          <button class="search-button" type="submit" disabled>날씨 보기</button>
         </form>
         <ul class="suggestions" id="suggestions" role="listbox" hidden></ul>
       </div>
 
       <div class="quick-actions">
-        <button class="location-button" id="locationButton" type="button">
+        <button class="location-button" id="locationButton" type="button" disabled>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.1 7-12A7 7 0 1 0 5 9c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
           현재 위치 사용
         </button>

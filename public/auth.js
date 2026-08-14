@@ -16,6 +16,8 @@ function showAuthMessage(message) {
 function showLoggedOut() {
   userMenu.hidden = true;
   googleButton.hidden = false;
+  document.body.classList.remove('authenticated');
+  window.dispatchEvent(new CustomEvent('authchange', { detail: { authenticated: false } }));
 }
 
 function showLoggedIn(user) {
@@ -24,6 +26,8 @@ function showLoggedIn(user) {
   userPicture.src = user.picture || '';
   userPicture.alt = `${user.name || '사용자'} 프로필 사진`;
   userMenu.hidden = false;
+  document.body.classList.add('authenticated');
+  window.dispatchEvent(new CustomEvent('authchange', { detail: { authenticated: true, user } }));
 }
 
 async function handleGoogleCredential(response) {
